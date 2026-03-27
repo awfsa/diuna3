@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Diuna 3 — Odliczanie</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Cinzel+Decorative:wght@400;700&family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --sand: #c9a96e;
+    --sand-light: #e8d5a3;
+    --sand-dark: #7a5c2e;
+    --spice: #d4681a;
+    --spice-glow: #ff8c2a;
+    --void: #0a0704;
+    --deep: #12090400;
+    --stone: #1e1408;
+    --text-dim: #7a6040;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--void);
+    color: var(--sand-light);
+    font-family: 'Cormorant Garamond', serif;
+    min-height: 100vh;
+    overflow: hidden;
+    position: relative;
+  }
+
+  /* Animated sand dune background */
+  .bg-layer {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+  }
+
+  canvas#dunes {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0.6;
+  }
+
+  /* Grain overlay */
+  .grain {
+    position: fixed;
+    inset: 0;
+    z-index: 1;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.08'/%3E%3C/svg%3E");
+    background-repeat: repeat;
+    background-size: 128px 128px;
+    pointer-events: none;
+    opacity: 0.4;
+  }
+
+  /* Radial vignette */
+  .vignette {
+    position: fixed;
+    inset: 0;
+    z-index: 2;
+    background: radial-gradient(ellipse at center, transparent 30%, rgba(0,0,0,0.85) 100%);
+    pointer-events: none;
+  }
+
+  /* Spice dust particles */
+  .particles {
+    position: fixed;
+    inset: 0;
+    z-index: 3;
+    pointer-events: none;
+  }
+
+  .particle {
+    position: absolute;
+    width: 2px;
+    height: 2px;
+    background: var(--spice-glow);
+    border-radius: 50%;
+    opacity: 0;
+    animation: drift var(--dur) ease-in-out infinite;
+    animation-delay: var(--delay);
+  }
+
+  @keyframes drift {
+    0% { transform: translate(0, 0) scale(0); opacity: 0; }
+    20% { opacity: 0.8; }
+    80% { opacity: 0.3; }
+    100% { transform: translate(var(--dx), var(--dy)) scale(0); opacity: 0; }
+  }
+
+  /* Main content */
+  .container {
+    position: relative;
+    z-index: 10;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    text-align: center;
+  }
+
+  /* Eye of Ibad symbol */
+  .eye-symbol {
+    margin-bottom: 1.5rem;
+    animation: pulse-glow 4s ease-in-out infinite;
+  }
+
+  @keyframes pulse-glow {
+    0%, 100% { filter: drop-shadow(0 0 8px rgba(212,104,26,0.4)); }
+    50% { filter: drop-shadow(0 0 20px rgba(255,140,42,0.8)); }
+  }
+
+  /* Titles */
+  .pre-title {
+    font-family: 'Cinzel', serif;
+    font-size: clamp(0.6rem, 1.5vw, 0.85rem);
+    letter-spacing: 0.5em;
+    color: var(--spice);
+    text-transform: uppercase;
+    margin-bottom: 0.8rem;
+    opacity: 0;
+    animation: fadeIn 1.5s ease forwards 0.5s;
+  }
+
+  .main-title {
+    font-family: 'Cinzel Decorative', serif;
+    font-size: clamp(2.5rem, 8vw, 6rem);
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    line-height: 1;
+    color: var(--sand-light);
+    text-shadow: 0 0 40px rgba(212,104,26,0.5), 0 0 80px rgba(212,104,26,0.2);
+    opacity: 0;
+    animation: fadeSlideUp 1.5s ease forwards 0.8s;
+    margin-bottom: 0.2rem;
+  }
+
+  .main-title span {
+    color: var(--spice-glow);
+  }
+
+  .subtitle {
+    font-family: 'Cinzel', serif;
+    font-size: clamp(0.7rem, 2vw, 1rem);
+    letter-spacing: 0.4em;
+    color: var(--sand);
+    margin-bottom: 0.5rem;
+    opacity: 0;
+    animation: fadeIn 1.5s ease forwards 1.2s;
+  }
+
+  .tagline {
+    font-family: 'Cormorant Garamond', serif;
+    font-style: italic;
+    font-size: clamp(0.85rem, 2vw, 1.1rem);
+    color: var(--text-dim);
+    letter-spacing: 0.1em;
+    margin-bottom: 3rem;
+    opacity: 0;
+    animation: fadeIn 1.5s ease forwards 1.5s;
+  }
+
+  /* Divider */
+  .divider {
+    width: 300px;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--spice), transparent);
+    margin: 0 auto 3rem;
+    position: relative;
+    opacity: 0;
+    animation: fadeIn 1.5s ease forwards 1.8s;
+  }
+
+  .divider::before, .divider::after {
+    content: '◆';
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--spice);
+    font-size: 0.5rem;
+  }
+  .divider::before { left: -0.5rem; }
+  .divider::after { right: -0.5rem; }
+
+  /* Countdown grid */
+  .countdown {
+    display: flex;
+    gap: clamp(1rem, 3vw, 2.5rem);
+    align-items: flex-start;
+    justify-content: center;
+    flex-wrap: wrap;
+    opacity: 0;
+    animation: fadeSlideUp 1.5s ease forwards 2s;
+  }
+
+  .unit {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .number-wrap {
+    position: relative;
+    width: clamp(70px, 14vw, 120px);
+    height: clamp(80px, 15vw, 130px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .number-wrap::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border: 1px solid rgba(201,169,110,0.2);
+    border-radius: 4px;
+    background: rgba(201,169,110,0.04);
+    box-shadow: inset 0 0 20px rgba(0,0,0,0.5), 0 0 15px rgba(212,104,26,0.1);
+  }
+
+  .number-wrap::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 10%; right: 10%;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(201,169,110,0.4), transparent);
+  }
+
+  .number {
+    font-family: 'Cinzel', serif;
+    font-size: clamp(2rem, 6vw, 4.5rem);
+    font-weight: 700;
+    color: var(--sand-light);
+    text-shadow: 0 0 20px rgba(212,104,26,0.6);
+    line-height: 1;
+    position: relative;
+    z-index: 1;
+    transition: all 0.3s ease;
+  }
+
+  .number.flip {
+    animation: flipNum 0.3s ease;
+  }
+
+  @keyframes flipNum {
+    0% { transform: translateY(0); opacity: 1; }
+    50% { transform: translateY(-10px); opacity: 0; }
+    51% { transform: translateY(10px); opacity: 0; }
+    100% { transform: translateY(0); opacity: 1; }
+  }
+
+  .label {
+    font-family: 'Cinzel', serif;
+    font-size: clamp(0.5rem, 1.2vw, 0.65rem);
+    letter-spacing: 0.3em;
+    color: var(--text-dim);
+    text-transform: uppercase;
+  }
+
+  .separator {
+    font-family: 'Cinzel', serif;
+    font-size: clamp(1.5rem, 4vw, 3rem);
+    color: var(--spice);
+    align-self: center;
+    margin-top: -1rem;
+    opacity: 0.6;
+    animation: blink 2s step-end infinite;
+  }
+
+  @keyframes blink {
+    0%, 100% { opacity: 0.6; }
+    50% { opacity: 0.1; }
+  }
+
+  /* Release date */
+  .release-info {
+    margin-top: 3rem;
+    opacity: 0;
+    animation: fadeIn 1.5s ease forwards 2.5s;
+  }
+
+  .release-date {
+    font-family: 'Cinzel', serif;
+    font-size: clamp(0.7rem, 1.8vw, 0.9rem);
+    letter-spacing: 0.35em;
+    color: var(--sand-dark);
+    text-transform: uppercase;
+    margin-bottom: 0.4rem;
+  }
+
+  .release-date span {
+    color: var(--spice);
+  }
+
+  .quote {
+    font-family: 'Cormorant Garamond', serif;
+    font-style: italic;
+    font-size: clamp(0.75rem, 1.8vw, 1rem);
+    color: rgba(201,169,110,0.35);
+    max-width: 400px;
+    line-height: 1.6;
+  }
+
+  /* Done state */
+  .done-msg {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .done-msg.visible { display: flex; }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @keyframes fadeSlideUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Corner ornaments */
+  .corner {
+    position: fixed;
+    width: 60px;
+    height: 60px;
+    z-index: 10;
+    opacity: 0.3;
+  }
+  .corner svg { width: 100%; height: 100%; }
+  .corner.tl { top: 20px; left: 20px; }
+  .corner.tr { top: 20px; right: 20px; transform: scaleX(-1); }
+  .corner.bl { bottom: 20px; left: 20px; transform: scaleY(-1); }
+  .corner.br { bottom: 20px; right: 20px; transform: scale(-1,-1); }
+</style>
+</head>
+<body>
+
+<canvas id="dunes"></canvas>
+<div class="grain"></div>
+<div class="vignette"></div>
+<div class="particles" id="particles"></div>
+
+<!-- Corner ornaments -->
+<div class="corner tl"><svg viewBox="0 0 60 60" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M0 60 L0 0 L60 0" stroke="#c9a96e" stroke-width="1"/><path d="M0 40 L20 20 L40 0" stroke="#c9a96e" stroke-width="0.5" stroke-dasharray="3,3"/></svg></div>
+<div class="corner tr"><svg viewBox="0 0 60 60" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M0 60 L0 0 L60 0" stroke="#c9a96e" stroke-width="1"/><path d="M0 40 L20 20 L40 0" stroke="#c9a96e" stroke-width="0.5" stroke-dasharray="3,3"/></svg></div>
+<div class="corner bl"><svg viewBox="0 0 60 60" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M0 60 L0 0 L60 0" stroke="#c9a96e" stroke-width="1"/><path d="M0 40 L20 20 L40 0" stroke="#c9a96e" stroke-width="0.5" stroke-dasharray="3,3"/></svg></div>
+<div class="corner br"><svg viewBox="0 0 60 60" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M0 60 L0 0 L60 0" stroke="#c9a96e" stroke-width="1"/><path d="M0 40 L20 20 L40 0" stroke="#c9a96e" stroke-width="0.5" stroke-dasharray="3,3"/></svg></div>
+
+<div class="container">
+  <!-- Eye of Ibad -->
+  <div class="eye-symbol">
+    <svg width="60" height="30" viewBox="0 0 80 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <ellipse cx="40" cy="20" rx="38" ry="18" stroke="#d4681a" stroke-width="1"/>
+      <ellipse cx="40" cy="20" rx="10" ry="18" fill="#d4681a" opacity="0.15" stroke="#d4681a" stroke-width="0.5"/>
+      <ellipse cx="40" cy="20" rx="6" ry="6" fill="#d4681a" opacity="0.6"/>
+      <line x1="2" y1="20" x2="78" y2="20" stroke="#d4681a" stroke-width="0.5" opacity="0.4"/>
+    </svg>
+  </div>
+
+  <p class="pre-title">Powrót na Arrakis</p>
+  <h1 class="main-title">DIUNA <span>III</span></h1>
+  <p class="subtitle">Messiah</p>
+  <p class="tagline">„Muad'Dib widział przyszłość. Ale nie mógł jej zatrzymać."</p>
+
+  <div class="divider"></div>
+
+  <div class="countdown" id="countdown">
+    <div class="unit">
+      <div class="number-wrap"><span class="number" id="days">000</span></div>
+      <span class="label">Dni</span>
+    </div>
+    <div class="separator">:</div>
+    <div class="unit">
+      <div class="number-wrap"><span class="number" id="hours">00</span></div>
+      <span class="label">Godzin</span>
+    </div>
+    <div class="separator">:</div>
+    <div class="unit">
+      <div class="number-wrap"><span class="number" id="minutes">00</span></div>
+      <span class="label">Minut</span>
+    </div>
+    <div class="separator">:</div>
+    <div class="unit">
+      <div class="number-wrap"><span class="number" id="seconds">00</span></div>
+      <span class="label">Sekund</span>
+    </div>
+  </div>
+
+  <div class="done-msg" id="doneMsg">
+    <p class="main-title" style="font-size:clamp(1.5rem,4vw,3rem); opacity:1; animation:none;">Czas Nadszedł</p>
+    <p class="tagline" style="opacity:1; animation:none;">Przepowiednia się spełniła. Idź do kina.</p>
+  </div>
+
+  <div class="release-info">
+    <p class="release-date">Premiera: <span>18 Grudnia 2026</span></p>
+    <p class="quote">— Przeznaczenie czeka na tych, którzy mają odwagę sięgnąć po wodę życia —</p>
+  </div>
+</div>
+
+<script>
+  // ── Dune canvas background ──────────────────────────────────────────
+  const canvas = document.getElementById('dunes');
+  const ctx = canvas.getContext('2d');
+  let t = 0;
+
+  function resize() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  function drawDunes() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const W = canvas.width, H = canvas.height;
+
+    // Sky gradient
+    const sky = ctx.createLinearGradient(0, 0, 0, H);
+    sky.addColorStop(0, '#050301');
+    sky.addColorStop(0.4, '#0f0700');
+    sky.addColorStop(0.7, '#1a0c03');
+    sky.addColorStop(1, '#2a1205');
+    ctx.fillStyle = sky;
+    ctx.fillRect(0, 0, W, H);
+
+    // Stars
+    if (!window._stars) {
+      window._stars = Array.from({length: 120}, () => ({
+        x: Math.random(), y: Math.random() * 0.6,
+        r: Math.random() * 1.2 + 0.3,
+        twinkle: Math.random() * Math.PI * 2
+      }));
+    }
+    window._stars.forEach(s => {
+      s.twinkle += 0.015;
+      const a = 0.3 + 0.3 * Math.sin(s.twinkle);
+      ctx.beginPath();
+      ctx.arc(s.x * W, s.y * H, s.r, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(232,213,163,${a})`;
+      ctx.fill();
+    });
+
+    // Two moons of Arrakis
+    const moonGrad1 = ctx.createRadialGradient(W*0.75, H*0.15, 2, W*0.75, H*0.15, 22);
+    moonGrad1.addColorStop(0, 'rgba(232,213,163,0.9)');
+    moonGrad1.addColorStop(1, 'rgba(180,130,60,0)');
+    ctx.beginPath();
+    ctx.arc(W*0.75, H*0.15, 18, 0, Math.PI*2);
+    ctx.fillStyle = moonGrad1;
+    ctx.fill();
+
+    const moonGrad2 = ctx.createRadialGradient(W*0.2, H*0.1, 1, W*0.2, H*0.1, 12);
+    moonGrad2.addColorStop(0, 'rgba(201,169,110,0.6)');
+    moonGrad2.addColorStop(1, 'rgba(120,90,40,0)');
+    ctx.beginPath();
+    ctx.arc(W*0.2, H*0.1, 10, 0, Math.PI*2);
+    ctx.fillStyle = moonGrad2;
+    ctx.fill();
+
+    // Dune silhouettes
+    const duneData = [
+      { amp: 0.18, freq: 1.2, phase: 0.3, base: 0.55, color: '#180c03' },
+      { amp: 0.14, freq: 0.9, phase: 0.8, base: 0.62, color: '#1e1005' },
+      { amp: 0.12, freq: 1.5, phase: 0.1, base: 0.68, color: '#251508' },
+      { amp: 0.10, freq: 1.1, phase: 1.4, base: 0.74, color: '#2e1a0a' },
+    ];
+
+    duneData.forEach(d => {
+      ctx.beginPath();
+      ctx.moveTo(0, H);
+      for (let x = 0; x <= W; x += 3) {
+        const xN = x / W;
+        const y = H * d.base - H * d.amp * (
+          Math.sin(xN * Math.PI * d.freq * 2 + d.phase + t * 0.0003) * 0.6 +
+          Math.sin(xN * Math.PI * d.freq * 4 + d.phase * 1.5 + t * 0.0002) * 0.3 +
+          Math.sin(xN * Math.PI * d.freq * 7 + d.phase * 2 + t * 0.0001) * 0.1
+        );
+        ctx.lineTo(x, y);
+      }
+      ctx.lineTo(W, H);
+      ctx.closePath();
+      ctx.fillStyle = d.color;
+      ctx.fill();
+    });
+
+    // Spice glow on horizon
+    const glow = ctx.createLinearGradient(0, H*0.55, 0, H*0.75);
+    glow.addColorStop(0, 'rgba(212,104,26,0.12)');
+    glow.addColorStop(1, 'rgba(212,104,26,0)');
+    ctx.fillStyle = glow;
+    ctx.fillRect(0, H*0.55, W, H*0.2);
+
+    t++;
+    requestAnimationFrame(drawDunes);
+  }
+  drawDunes();
+
+  // ── Particles ──────────────────────────────────────────────────────
+  const pContainer = document.getElementById('particles');
+  for (let i = 0; i < 40; i++) {
+    const p = document.createElement('div');
+    p.className = 'particle';
+    p.style.cssText = `
+      left: ${Math.random() * 100}%;
+      top: ${Math.random() * 100}%;
+      --dur: ${4 + Math.random() * 8}s;
+      --delay: ${Math.random() * 8}s;
+      --dx: ${(Math.random() - 0.5) * 100}px;
+      --dy: ${-50 - Math.random() * 100}px;
+    `;
+    pContainer.appendChild(p);
+  }
+
+  // ── Countdown ──────────────────────────────────────────────────────
+  const target = new Date('2026-12-18T00:00:00');
+
+  const dEl = document.getElementById('days');
+  const hEl = document.getElementById('hours');
+  const mEl = document.getElementById('minutes');
+  const sEl = document.getElementById('seconds');
+  const cEl = document.getElementById('countdown');
+  const doneEl = document.getElementById('doneMsg');
+
+  let prevS = -1;
+
+  function pad(n, len = 2) {
+    return String(n).padStart(len, '0');
+  }
+
+  function animFlip(el) {
+    el.classList.remove('flip');
+    void el.offsetWidth;
+    el.classList.add('flip');
+  }
+
+  function update() {
+    const now = new Date();
+    const diff = target - now;
+
+    if (diff <= 0) {
+      cEl.style.display = 'none';
+      doneEl.classList.add('visible');
+      return;
+    }
+
+    const days = Math.floor(diff / 86400000);
+    const hours = Math.floor((diff % 86400000) / 3600000);
+    const mins = Math.floor((diff % 3600000) / 60000);
+    const secs = Math.floor((diff % 60000) / 1000);
+
+    if (secs !== prevS) {
+      if (prevS !== -1) animFlip(sEl);
+      sEl.textContent = pad(secs);
+      prevS = secs;
+    }
+
+    mEl.textContent = pad(mins);
+    hEl.textContent = pad(hours);
+    dEl.textContent = pad(days, 3);
+  }
+
+  update();
+  setInterval(update, 1000);
+</script>
+</body>
+</html>
